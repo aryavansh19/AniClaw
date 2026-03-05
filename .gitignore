@@ -13,3 +13,5 @@ frontend/node_modules
 .DS_Store
 Thumbs.db
 *.log
+backend/credentials.json
+backend/token.json

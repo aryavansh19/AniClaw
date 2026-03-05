@@ -25,6 +25,8 @@ export default function Auth({ defaultIsLogin = true }: { defaultIsLogin?: boole
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
+  const [sessionCode, setSessionCode] = useState('');
 
   const navigate = useNavigate();
 
@@ -51,37 +53,65 @@ export default function Auth({ defaultIsLogin = true }: { defaultIsLogin?: boole
     setSignupStep('whatsapp');
   };
 
+  const completeSignup = async () => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          whatsapp_number: whatsappNumber,
+        }
+      }
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    } else {
+      await fetch('http://localhost:8000/api/user/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: whatsappNumber, name: fullName })
+      });
+      navigate('/dashboard');
+    }
+  };
+
   const handleSignupStep2 = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!whatsappNumber) {
       setError('Please enter your WhatsApp number.');
       return;
     }
-    setLoading(true);
     setError(null);
+    setLoading(true);
+    setIsPolling(true);
 
-    // [TESTING OVERRIDE] Hardcoded verification
-    // Instead of opening WhatsApp, we just simulate a successful verification delay
-    setTimeout(async () => {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            whatsapp_number: whatsappNumber,
-            whatsapp_verified: true // storing a flag that we verified it
-          }
-        }
-      });
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    setSessionCode(code);
 
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-      } else {
-        navigate('/dashboard');
+    const eventSource = new EventSource(`http://localhost:8000/api/verify/stream/${code}`);
+
+    eventSource.onmessage = (event) => {
+      if (event.data === "SUCCESS") {
+        eventSource.close();
+        setIsPolling(false);
+        completeSignup();
       }
-    }, 1500);
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+      setIsPolling(false);
+      setLoading(false);
+      setError("Connection to server lost. Please try again.");
+    };
+
+    const cleanNumber = whatsappNumber.replace(/\D/g, '');
+    const botNumber = "+15551685392";
+
+    window.open(`https://wa.me/${botNumber}?text=verify-${code}`, '_blank');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
