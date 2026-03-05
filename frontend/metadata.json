@@ -1,0 +1,5 @@
+{
+  "name": "Anime Reminder",
+  "description": "A landing page for an anime reminder service via WhatsApp.",
+  "requestFramePermissions": []
+}
