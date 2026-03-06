@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Plus, Trash2, Clock, LogOut, Settings, Home, Bell, X, PlayCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, Plus, Trash2, Clock, LogOut, Settings, Home, Bell, X, PlayCircle, CheckCircle, TrendingUp, Flame } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 // --- Types & Data ---
@@ -15,40 +15,97 @@ type Anime = {
   status?: string;
 };
 
-const MOCK_NOTIFICATIONS = [
-  { id: 1, title: 'Jujutsu Kaisen', message: 'Episode 48 is releasing in 1 hour!', time: '1 hour ago', unread: true },
-  { id: 2, title: 'Demon Slayer', message: 'Episode 55 is now available!', time: '2 days ago', unread: false },
-  { id: 3, title: 'System', message: 'Welcome to ANICLAW! Add your first anime to get started.', time: '1 week ago', unread: false },
-];
-
 // --- Helper Components ---
 
-function Countdown({ targetDate }: { targetDate: string }) {
+function Countdown({ targetDate, status }: { targetDate: string | null, status?: string }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [computedState, setComputedState] = useState<'tba' | 'waiting' | 'airing' | 'fetching' | 'completed'>('waiting');
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const updateState = () => {
+      if (status === 'tba') {
+        setComputedState('tba');
+        return;
+      }
+      if (status === 'completed') {
+        setComputedState('completed');
+        return;
+      }
+      if (status === 'fetching') {
+        setComputedState('fetching');
+        return;
+      }
+      if (!targetDate) {
+        setComputedState('tba');
+        return;
+      }
+
       const now = new Date().getTime();
       const target = new Date(targetDate).getTime();
       const difference = target - now;
 
       if (difference > 0) {
+        setComputedState('waiting');
         setTimeLeft({
           days: Math.floor(difference / (1000 * 60 * 60 * 24)),
           hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
           minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
           seconds: Math.floor((difference % (1000 * 60)) / 1000),
         });
+      } else if (difference <= 0 && difference > -3600000) {
+        // Between exactly 0 and 3600 seconds (1 hour buffer)
+        setComputedState('airing');
       } else {
-        clearInterval(interval);
+        // More than 1 hour past the target and status hasn't reset
+        setComputedState('fetching');
       }
-    }, 1000);
+    };
 
+    updateState();
+    const interval = setInterval(updateState, 1000);
     return () => clearInterval(interval);
-  }, [targetDate]);
+  }, [targetDate, status]);
+
+  if (computedState === 'tba') {
+    return (
+      <div className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-white/10 rounded-2xl">
+        <h3 className="text-gray-300 font-bold text-lg mb-1">To Be Announced</h3>
+        <p className="text-gray-500 text-sm text-center">Release date is currently unknown.</p>
+      </div>
+    );
+  }
+
+  if (computedState === 'completed') {
+    return (
+      <div className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-green-500/30 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.15)]">
+        <h3 className="text-green-500 font-bold text-lg mb-1">Season Completed</h3>
+        <p className="text-gray-400 text-sm text-center">All episodes have aired.</p>
+      </div>
+    );
+  }
+
+  if (computedState === 'airing') {
+    return (
+      <div className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-blue-500/30 rounded-2xl shadow-[0_0_20px_rgba(59,130,246,0.15)]">
+        <div className="animate-pulse mb-4 rounded-full h-4 w-4 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,1)]"></div>
+        <h3 className="text-blue-500 font-bold text-lg mb-1">Airing Now</h3>
+        <p className="text-gray-400 text-sm text-center">The episode is currently broadcasting in Japan.</p>
+      </div>
+    );
+  }
+
+  if (computedState === 'fetching') {
+    return (
+      <div className="flex flex-col items-center justify-center p-6 bg-zinc-900 border border-[#E50914]/30 rounded-2xl shadow-[0_0_20px_rgba(229,9,20,0.15)]">
+        <div className="animate-spin mb-4 rounded-full h-10 w-10 border-t-2 border-[#E50914] border-r-2 border-r-transparent"></div>
+        <h3 className="text-[#E50914] font-bold text-lg mb-1">Fetching Links...</h3>
+        <p className="text-gray-400 text-sm text-center">The episode has aired! We are gathering the streams from our sources.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex gap-4 justify-center mt-6">
+    <div className="flex gap-4 justify-center p-6 bg-zinc-900 border border-white/5 rounded-2xl text-center shadow-lg">
       {[
         { label: 'Days', value: timeLeft.days },
         { label: 'Hours', value: timeLeft.hours },
@@ -108,6 +165,138 @@ export default function Dashboard() {
   const [selectedAnime, setSelectedAnime] = useState<Anime | null>(null);
   const [watchlist, setWatchlist] = useState<Anime[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const verifyActiveSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        navigate('/');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (error || !data) {
+        await supabase.auth.signOut();
+        navigate('/');
+      }
+    };
+
+    verifyActiveSession();
+  }, [navigate]);
+
+  // --- Helper to get grid state ---
+  const getComputedState = (anime: Anime) => {
+    if (anime.status === 'tba') return 'tba';
+    if (anime.status === 'completed') return 'completed';
+    if (anime.status === 'fetching') return 'fetching';
+    if (!anime.nextEpisodeTime) return 'tba';
+
+    const now = new Date().getTime();
+    const target = new Date(anime.nextEpisodeTime).getTime();
+    const diff = target - now;
+
+    if (diff > 0) return 'waiting';
+    if (diff <= 0 && diff > -3600000) return 'airing';
+    return 'fetching';
+  };
+
+  // --- Profile State ---
+  const [userProfile, setUserProfile] = useState<{ email: string; full_name: string; whatsapp_number: string | null } | null>(null);
+  const [whatsappInput, setWhatsappInput] = useState('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  // --- Notifications State ---
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const triggeredRefs = useRef<Set<string>>(new Set());
+
+  // Load notifications from local storage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('aniclaw_notifications');
+    if (saved) {
+      try {
+        setNotifications(JSON.parse(saved));
+      } catch (e) { }
+    }
+  }, []);
+
+  const addNotification = (title: string, message: string) => {
+    const newNotif = {
+      id: Date.now().toString(),
+      title,
+      message,
+      time: 'Just now',
+      unread: true
+    };
+    setNotifications(prev => {
+      const next = [newNotif, ...prev];
+      localStorage.setItem('aniclaw_notifications', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // --- Timer & Logic Monitor ---
+  useEffect(() => {
+    const checkTimers = () => {
+      const now = new Date().getTime();
+      const currentList = [...watchlist];
+
+      currentList.forEach((anime, index) => {
+        if (!anime.nextEpisodeTime) return;
+
+        const target = new Date(anime.nextEpisodeTime).getTime();
+        const diff = target - now;
+        const diffMinutes = Math.floor(diff / 60000);
+
+        const epLabel = anime.currentEpisode ? anime.currentEpisode + 1 : '?';
+
+        // 30 Mins Reminder
+        const id30 = `${anime.id}-30m-${epLabel}`;
+        if (diffMinutes === 30 && !triggeredRefs.current.has(id30)) {
+          triggeredRefs.current.add(id30);
+          addNotification(anime.title, `Episode ${epLabel} is dropping in 30 minutes!`);
+        }
+
+        // Exact Time Reminder (When it hits 0 -> Airing Now)
+        const id0 = `${anime.id}-0m-${epLabel}`;
+        if (diff <= 0 && !triggeredRefs.current.has(id0)) {
+          triggeredRefs.current.add(id0);
+          addNotification(anime.title, `Episode ${epLabel} is Airing Now!`);
+        }
+      });
+    };
+
+    const interval = setInterval(checkTimers, 10000); // Check every 10 seconds
+    checkTimers(); // Immediate initial check
+
+    return () => clearInterval(interval);
+  }, [watchlist, selectedAnime]);
+
+  // Realtime Supabase Subscription
+  useEffect(() => {
+    // Listen to changes on the 'anime' table
+    const channel = supabase.channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'anime' },
+        (payload) => {
+          console.log("Realtime Anime Update received:", payload);
+          // When an anime is updated, just fetch the fresh watchlist to keep UI in sync
+          fetchMyWatchlist();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Create a function to fetch the data
   const fetchMyWatchlist = async () => {
@@ -115,6 +304,12 @@ export default function Dashboard() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      setUserProfile({
+        email: user.email || '',
+        full_name: user.user_metadata?.full_name || '',
+        whatsapp_number: user.user_metadata?.whatsapp_number || null
+      });
 
       // The "Magic" Query: Join subs with anime
       const { data, error } = await supabase
@@ -156,6 +351,67 @@ export default function Dashboard() {
     }
   };
 
+  const handleConnectWhatsapp = async () => {
+    if (!whatsappInput) return;
+    setIsUpdatingProfile(true);
+    const { error } = await supabase.auth.updateUser({
+      data: { whatsapp_number: whatsappInput }
+    });
+    if (!error && userProfile) {
+      setUserProfile({ ...userProfile, whatsapp_number: whatsappInput });
+      setWhatsappInput('');
+    }
+    setIsUpdatingProfile(false);
+  };
+
+  const handleDeleteWhatsapp = async () => {
+    if (!confirm('Are you sure you want to disconnect your WhatsApp number? You will no longer receive episode reminders.')) return;
+    setIsUpdatingProfile(true);
+    const { error } = await supabase.auth.updateUser({
+      data: { whatsapp_number: null }
+    });
+    if (!error && userProfile) {
+      setUserProfile({ ...userProfile, whatsapp_number: null });
+    }
+    setIsUpdatingProfile(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    showDialog(
+      "Delete Account",
+      "Are you sure you want to completely delete your account and all tracking data? This action cannot be undone.",
+      "confirm",
+      async () => {
+        setIsUpdatingProfile(true);
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+
+          const response = await fetch('http://localhost:8000/api/user/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: user.id })
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            // Wipe persistent frontend data tied to this deleted identity 
+            localStorage.removeItem('aniclaw_notifications');
+            await supabase.auth.signOut();
+            window.location.href = '/';
+          } else {
+            showDialog("Delete Failed", result.message || "Failed to delete account.", "error");
+          }
+        } catch (err) {
+          console.error("Delete account error", err);
+          showDialog("Connection Error", "Failed to connect to backend securely.", "error");
+        } finally {
+          setIsUpdatingProfile(false);
+        }
+      }
+    );
+  };
+
   // Fetch on initial load
   useEffect(() => {
     fetchMyWatchlist();
@@ -186,6 +442,7 @@ export default function Dashboard() {
   // 1. New States
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [addingAnimeId, setAddingAnimeId] = useState<number | null>(null);
   const [dialogState, setDialogState] = useState<{
     isOpen: boolean,
     title: string,
@@ -237,6 +494,14 @@ export default function Dashboard() {
       return;
     }
 
+    // Check if the anime has already finished airing
+    if (anime.status === 'FINISHED') {
+      showDialog("Season Completed", "This anime has finished airing, so tracking is not available.", "info");
+      return;
+    }
+
+    setAddingAnimeId(anime.id);
+
     try {
       const response = await fetch('http://localhost:8000/api/track/web', {
         method: 'POST',
@@ -258,9 +523,19 @@ export default function Dashboard() {
     } catch (err) {
       console.error("Failed to call Python API", err);
       showDialog("Connection Error", "Failed to connect to the tracking server.", "error");
+    } finally {
+      setAddingAnimeId(null);
     }
   };
 
+
+  const totalWatchedCount = watchlist.reduce((sum, anime) => sum + (anime.currentEpisode || 0), 0);
+  const upcomingThisWeekCount = watchlist.filter(anime => {
+    if (!anime.nextEpisodeTime) return false;
+    const diff = new Date(anime.nextEpisodeTime).getTime() - Date.now();
+    // In the future (within 7 days) OR currently in the 1 hour airing buffer
+    return (diff > -3600000 && diff <= 7 * 24 * 60 * 60 * 1000);
+  }).length;
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex font-sans selection:bg-[#E50914] selection:text-white">
@@ -289,11 +564,24 @@ export default function Dashboard() {
             Discover
           </button>
           <button
-            onClick={() => setActiveTab('notifications')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'notifications' ? 'bg-[#E50914]/10 text-[#E50914]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+            onClick={() => {
+              setActiveTab('notifications');
+              // Mark as read after a short 2-sec delay
+              setTimeout(() => {
+                setNotifications(prev => {
+                  const updated = prev.map(n => ({ ...n, unread: false }));
+                  localStorage.setItem('aniclaw_notifications', JSON.stringify(updated));
+                  return updated;
+                });
+              }, 2000);
+            }}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors relative ${activeTab === 'notifications' ? 'bg-[#E50914]/10 text-[#E50914]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
           >
             <Bell className="w-5 h-5" />
             Notifications
+            {notifications.some(n => n.unread) && (
+              <span className="absolute top-3 right-4 w-2 h-2 bg-[#E50914] rounded-full shadow-[0_0_5px_rgba(229,9,20,0.8)] animate-pulse"></span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -336,7 +624,6 @@ export default function Dashboard() {
 
           {activeTab === 'dashboard' && (
             <>
-              {/* Stats Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-6">
                   <h3 className="text-gray-400 text-sm font-medium mb-2">Tracking</h3>
@@ -344,11 +631,11 @@ export default function Dashboard() {
                 </div>
                 <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-6">
                   <h3 className="text-gray-400 text-sm font-medium mb-2">Upcoming This Week</h3>
-                  <p className="text-3xl font-bold text-[#E50914]">2 <span className="text-lg text-gray-500 font-normal">Episodes</span></p>
+                  <p className="text-3xl font-bold text-[#E50914]">{upcomingThisWeekCount} <span className="text-lg text-gray-500 font-normal">Episodes</span></p>
                 </div>
                 <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-6">
                   <h3 className="text-gray-400 text-sm font-medium mb-2">Total Watched</h3>
-                  <p className="text-3xl font-bold">114 <span className="text-lg text-gray-500 font-normal">Episodes</span></p>
+                  <p className="text-3xl font-bold">{totalWatchedCount} <span className="text-lg text-gray-500 font-normal">Episodes</span></p>
                 </div>
               </div>
 
@@ -397,11 +684,14 @@ export default function Dashboard() {
                             <h3 className="font-bold text-lg leading-tight mb-1">{anime.title}</h3>
                             <div className="flex items-center gap-2 text-sm text-gray-300">
                               <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-bold">EP {anime.currentEpisode || '?'}</span>
-                              {anime.nextEpisodeTime && (
-                                <span className="flex items-center gap-1 text-[#E50914] font-medium">
-                                  <Clock className="w-3 h-3" /> Upcoming
-                                </span>
-                              )}
+                              {(() => {
+                                const state = getComputedState(anime);
+                                if (state === 'tba') return <span className="flex items-center gap-1 text-gray-400 font-medium">TBA</span>;
+                                if (state === 'completed') return <span className="flex items-center gap-1 text-green-500 font-medium">Completed</span>;
+                                if (state === 'fetching') return <span className="flex items-center gap-1 text-[#E50914] font-medium animate-pulse"><Clock className="w-3 h-3" /> Fetching</span>;
+                                if (state === 'airing') return <span className="flex items-center gap-1 text-blue-500 font-medium animate-pulse"><Clock className="w-3 h-3" /> Airing Now</span>;
+                                return <span className="flex items-center gap-1 text-[#E50914] font-medium"><Clock className="w-3 h-3" /> Upcoming</span>;
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -419,92 +709,148 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'discover' && (
-            <div className="max-w-3xl mx-auto">
-              <div className="relative mb-10">
-                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isSearching ? 'animate-pulse text-[#E50914]' : 'text-gray-400'}`} />
-                <input
-                  type="text"
-                  placeholder="Search for anime (e.g. Solo Leveling)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-12 pr-5 py-4 text-white focus:outline-none focus:border-[#E50914] transition-colors shadow-lg text-lg"
-                />
+            <div className="w-full flex flex-col gap-6 h-[calc(100vh-120px)]">
+              {/* Top 20% - Search Box */}
+              <div className="flex-none h-[20%] min-h-[120px] bg-transparent border border-dashed border-white/10 rounded-3xl p-6 flex flex-col justify-center relative">
+                <div className="w-full flex gap-3 relative">
+                  <div className="relative flex-1">
+                    <Search className={`absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 ${isSearching ? 'animate-pulse text-[#E50914]' : 'text-gray-500'}`} />
+                    <input
+                      type="text"
+                      placeholder="Search for anime..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-zinc-950/80 border border-white/5 rounded-2xl pl-14 pr-6 py-4 text-white focus:outline-none focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914] shadow-lg text-lg transition-all h-full"
+                    />
+                  </div>
+                  <button
+                    onClick={() => { }}
+                    className="px-8 bg-[#E50914] hover:bg-[#b80710] text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(229,9,20,0.3)] hover:shadow-[0_0_30px_rgba(229,9,20,0.5)] transition-all flex items-center gap-2"
+                  >
+                    Search
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {searchResults.map((anime) => (
-                  <motion.div key={anime.id} layout className="bg-zinc-900 rounded-2xl overflow-hidden border border-white/5 shadow-lg">
-                    <div className="aspect-[3/4] relative">
-                      <img src={anime.coverImage.large} alt="cover" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black p-4 flex flex-col justify-end">
-                        <h3 className="font-bold text-sm leading-tight">{anime.title.english || anime.title.romaji}</h3>
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleAdd(anime)}
-                          className="mt-2 w-full bg-[#E50914] py-2 rounded-lg text-xs font-bold hover:bg-[#b80710] transition-colors flex items-center justify-center gap-1 shadow-[0_0_10px_rgba(229,9,20,0.2)] hover:shadow-[0_0_15px_rgba(229,9,20,0.5)]"
-                        >
-                          <Plus className="w-3 h-3" /> Add to Scout
-                        </motion.button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+              {/* Bottom 80% - Results Box */}
+              <div className="flex-1 bg-transparent border border-dashed border-white/10 rounded-3xl p-6 overflow-y-auto custom-scrollbar">
+                {!searchQuery && searchResults.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-gray-500">
+                    <p className="flex items-center gap-2"><Search className="w-4 h-4" /> Search for an anime to start tracking...</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 pb-6">
+                    {searchResults.map((anime) => (
+                      <motion.div key={anime.id} layout className="bg-zinc-900 rounded-2xl overflow-hidden border border-white/5 shadow-lg relative group">
+                        <div className="aspect-[3/4] relative overflow-hidden">
+                          <img src={anime.coverImage.large} alt="cover" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                          <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 items-end">
+                            {anime.status === 'RELEASING' && <span className="bg-[#E50914] text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-lg">RELEASING</span>}
+                            {anime.status === 'FINISHED' && <span className="bg-green-600/90 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-lg backdrop-blur-sm">FINISHED</span>}
+                            {anime.status === 'NOT_YET_RELEASED' && <span className="bg-blue-500/90 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-lg backdrop-blur-sm">UPCOMING</span>}
+                            {anime.status === 'HIATUS' && <span className="bg-yellow-600/90 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-lg backdrop-blur-sm">HIATUS</span>}
+                            {anime.status === 'CANCELLED' && <span className="bg-red-900/90 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-lg backdrop-blur-sm">CANCELLED</span>}
+                          </div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent p-3 flex flex-col justify-end opacity-90 group-hover:opacity-100 transition-opacity">
+                            <h3 className="font-bold text-xs leading-snug line-clamp-2">{anime.title.english || anime.title.romaji}</h3>
+                            <motion.button
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handleAdd(anime)}
+                              disabled={addingAnimeId === anime.id}
+                              className="mt-2 w-full bg-[#E50914] py-2 rounded text-[11px] font-bold hover:bg-[#b80710] disabled:opacity-70 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1 shadow-[0_0_10px_rgba(229,9,20,0.2)]"
+                            >
+                              {addingAnimeId === anime.id ? (
+                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <Plus className="w-3 h-3" />
+                              )}
+                              {addingAnimeId === anime.id ? 'Loading' : 'Scout'}
+                            </motion.button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {activeTab === 'notifications' && (
-            <div className="max-w-3xl mx-auto">
-              <div className="flex flex-col gap-4">
-                {MOCK_NOTIFICATIONS.map(notif => (
-                  <div key={notif.id} className={`p-5 rounded-2xl border ${notif.unread ? 'bg-zinc-900 border-[#E50914]/30' : 'bg-zinc-900/50 border-white/5'} flex items-start gap-4`}>
-                    <div className={`p-3 rounded-full ${notif.unread ? 'bg-[#E50914]/20 text-[#E50914]' : 'bg-white/5 text-gray-400'}`}>
-                      <Bell className="w-5 h-5" />
+            <div className="w-full">
+              {notifications.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  {notifications.map(notif => (
+                    <div key={notif.id} className={`p-5 rounded-2xl border ${notif.unread ? 'bg-zinc-900 border-[#E50914]/30' : 'bg-zinc-900/50 border-white/5'} flex items-start gap-4 transition-colors duration-300`}>
+                      <div className={`p-3 rounded-full ${notif.unread ? 'bg-[#E50914]/20 text-[#E50914]' : 'bg-white/5 text-gray-400'}`}>
+                        <Bell className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-lg">{notif.title}</h4>
+                        <p className="text-gray-400 mt-1">{notif.message}</p>
+                        <span className="text-xs text-gray-500 mt-2 block">{notif.time}</span>
+                      </div>
+                      {notif.unread && <div className="w-3 h-3 rounded-full bg-[#E50914] mt-2 shadow-[0_0_8px_rgba(229,9,20,0.8)]"></div>}
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-lg">{notif.title}</h4>
-                      <p className="text-gray-400 mt-1">{notif.message}</p>
-                      <span className="text-xs text-gray-500 mt-2 block">{notif.time}</span>
-                    </div>
-                    {notif.unread && <div className="w-3 h-3 rounded-full bg-[#E50914] mt-2"></div>}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20 bg-zinc-900/50 rounded-3xl border border-dashed border-white/10">
+                  <Bell className="w-12 h-12 text-gray-600 mx-auto mb-4 opacity-50" />
+                  <p className="text-gray-400 text-lg">You have no notifications yet.</p>
+                  <p className="text-sm text-gray-500 mt-2">We'll alert you when new episodes are about to drop!</p>
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === 'settings' && (
-            <div className="max-w-3xl mx-auto">
-              <div className="bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden">
-                <div className="p-6 border-b border-white/5">
+            <div className="w-full">
+              <div className="flex flex-col gap-10">
+                <div className="pb-8 border-b border-white/5">
                   <h3 className="text-lg font-bold mb-4">Profile Information</h3>
                   <div className="flex flex-col gap-4">
                     <div>
                       <label className="block text-sm text-gray-400 mb-2">Full Name</label>
-                      <input type="text" defaultValue="Weeb Master" className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#E50914]" />
+                      <input type="text" readOnly value={userProfile?.full_name || ''} className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#E50914] opacity-70 cursor-not-allowed" />
                     </div>
                     <div>
                       <label className="block text-sm text-gray-400 mb-2">Email Address</label>
-                      <input type="email" defaultValue="weeb@example.com" className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#E50914]" />
+                      <input type="email" readOnly value={userProfile?.email || ''} className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#E50914] opacity-70 cursor-not-allowed" />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-6 border-b border-white/5">
+                <div className="pb-8 border-b border-white/5">
                   <h3 className="text-lg font-bold mb-4">WhatsApp Integration</h3>
                   <p className="text-sm text-gray-400 mb-4">Connect your WhatsApp number to receive instant episode reminders.</p>
                   <div>
                     <label className="block text-sm text-gray-400 mb-2">Phone Number</label>
                     <div className="flex gap-4">
-                      <input type="tel" placeholder="+1 (555) 000-0000" className="flex-1 bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#E50914]" />
-                      <button className="bg-[#E50914] hover:bg-[#b80710] text-white px-6 py-3 rounded-xl font-bold transition-colors">Connect</button>
+                      {userProfile?.whatsapp_number ? (
+                        <>
+                          <div className="flex-1 bg-zinc-950 border border-green-500/50 rounded-xl px-4 py-3 text-green-500 flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5" /> Connected: {userProfile.whatsapp_number}
+                          </div>
+                          <button onClick={handleDeleteWhatsapp} disabled={isUpdatingProfile} className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold transition-colors">Disconnect</button>
+                        </>
+                      ) : (
+                        <>
+                          <input type="tel" value={whatsappInput} onChange={(e) => setWhatsappInput(e.target.value)} placeholder="+1 (555) 000-0000" className="flex-1 bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#E50914]" />
+                          <button onClick={handleConnectWhatsapp} disabled={isUpdatingProfile || !whatsappInput} className="bg-[#E50914] hover:bg-[#b80710] disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold transition-colors">
+                            {isUpdatingProfile ? 'Connecting...' : 'Connect'}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="p-6">
+                <div className="pb-8">
                   <h3 className="text-lg font-bold mb-4 text-red-500">Danger Zone</h3>
-                  <button className="border border-red-500/50 text-red-500 hover:bg-red-500/10 px-6 py-3 rounded-xl font-bold transition-colors">Delete Account</button>
+                  <button className="border border-red-500/50 text-red-500 hover:bg-red-500/10 px-6 py-3 rounded-xl font-bold transition-colors" onClick={handleDeleteAccount} disabled={isUpdatingProfile}>
+                    {isUpdatingProfile ? 'Deleting...' : 'Delete Account'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -549,22 +895,7 @@ export default function Dashboard() {
                 <h2 className="text-4xl font-display font-extrabold mb-2">{selectedAnime.title}</h2>
                 <p className="text-gray-400 mb-8">Get ready for the next episode. WhatsApp reminder will be sent 15 minutes before release.</p>
 
-                <div className="bg-zinc-900 border border-white/5 rounded-2xl p-8 text-center">
-                  {selectedAnime.nextEpisodeTime ? (
-                    <>
-                      <h3 className="text-gray-300 font-medium mb-4 flex items-center justify-center gap-2">
-                        <Clock className="w-5 h-5 text-[#E50914]" />
-                        Time until release
-                      </h3>
-                      <Countdown targetDate={selectedAnime.nextEpisodeTime} />
-                    </>
-                  ) : (
-                    <div className="py-8">
-                      <h3 className="text-xl font-bold text-gray-300 mb-2">Season Complete / Hiatus</h3>
-                      <p className="text-gray-500">No upcoming episodes scheduled at this time.</p>
-                    </div>
-                  )}
-                </div>
+                <Countdown targetDate={selectedAnime.nextEpisodeTime} status={selectedAnime.status} />
               </div>
             </motion.div>
           </div>

@@ -2,7 +2,7 @@ import { motion } from 'motion/react';
 import { Bell, Zap, Clock, CheckCheck, Phone, Video, MoreVertical, Plus, Camera, Mic } from 'lucide-react';
 
 const features = [
-  { icon: <Bell className="w-6 h-6 text-[#E50914]" />, title: "Instant Notifications", desc: "Get pinged the second a new episode is available on your favorite streaming platform." },
+  { icon: <Bell className="w-6 h-6 text-[#E50914]" />, title: "Instant Notifications", desc: "Get pinged with a direct streaming link the second a new episode is available on your favorite platform." },
   { icon: <Zap className="w-6 h-6 text-[#E50914]" />, title: "Zero Delay", desc: "Our bots monitor releases 24/7 so you don't have to keep refreshing." },
   { icon: <Clock className="w-6 h-6 text-[#E50914]" />, title: "Custom Schedule", desc: "Set quiet hours or batch notifications so you only get alerted when you're ready to watch." },
 ];
@@ -150,15 +150,14 @@ export default function Features() {
         </div>
 
         {/* Right: Features List */}
-        <div className="flex flex-col gap-10 lg:pl-10">
+        <div className="flex flex-col lg:pl-10">
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
             className="mb-8 md:mb-12"
           >
-            <p className="text-gray-300 text-xl md:text-2xl leading-relaxed">We track release schedules across all major platforms so you can watch the moment it drops. Straight to your inbox.</p>
+            <p className="text-gray-300 text-xl md:text-2xl leading-relaxed">We track releases across all major platforms. You get instant alerts with direct links to watch the moment an episode drops, straight to your WhatsApp.</p>
           </motion.div>
 
           <div className="flex flex-col gap-8 mt-2">
@@ -183,6 +182,6 @@ export default function Features() {
           </div>
         </div>
       </div>
-    </section>
+    </section >
   );
 }
