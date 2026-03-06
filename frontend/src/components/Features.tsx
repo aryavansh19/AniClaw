@@ -13,20 +13,19 @@ const Message = ({ text, isUser, time, delay, children }: { text?: string, isUse
     whileInView={{ opacity: 1, scale: 1, x: 0, y: 0 }}
     viewport={{ once: true }}
     transition={{ delay, type: "spring", stiffness: 250, damping: 25 }}
-    className={`relative z-10 p-2 px-3 rounded-xl text-[14px] shadow-sm max-w-[85%] ${
-      isUser
-        ? "bg-[#E50914] text-white self-end rounded-tr-none"
-        : "bg-[#202c33] text-white self-start rounded-tl-none"
-    }`}
+    className={`relative z-10 p-2 px-3 rounded-xl text-[14px] shadow-sm max-w-[85%] ${isUser
+      ? "bg-[#E50914] text-white self-end rounded-tr-none"
+      : "bg-[#202c33] text-white self-start rounded-tl-none"
+      }`}
   >
     {/* Message Tail */}
-    <div 
-      className={`absolute top-0 w-3 h-3 ${isUser ? '-right-2 bg-[#E50914]' : '-left-2 bg-[#202c33]'}`} 
+    <div
+      className={`absolute top-0 w-3 h-3 ${isUser ? '-right-2 bg-[#E50914]' : '-left-2 bg-[#202c33]'}`}
       style={{ clipPath: isUser ? 'polygon(0 0, 0 100%, 100% 0)' : 'polygon(100% 0, 100% 100%, 0 0)' }}
     />
-    
+
     <div className="leading-snug">{text || children}</div>
-    
+
     <div className="flex items-center justify-end gap-1 mt-1 float-right ml-3">
       <span className="text-[10px] text-white/70">{time}</span>
       {isUser && <CheckCheck className="w-[14px] h-[14px] text-white/90" />}
@@ -36,15 +35,36 @@ const Message = ({ text, isUser, time, delay, children }: { text?: string, isUse
 
 export default function Features() {
   return (
-    <section className="relative w-full min-h-screen bg-zinc-950 text-white pb-24 pt-32 px-6 md:px-12 lg:px-24 z-20 overflow-hidden">
+    <section className="relative w-full min-h-screen bg-zinc-950 text-white pb-24 pt-12 rounded-t-[3rem] border-t border-[#E50914]/20 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] px-6 md:px-12 lg:px-24 z-20 overflow-hidden">
+      {/* Main Section Neon Heading */}
+      <motion.div
+        initial={{ opacity: 0, y: -30, filter: 'blur(10px)' }}
+        whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="max-w-7xl mx-auto mt-6 mb-16 md:mb-20"
+      >
+        <div className="flex items-center justify-center w-full gap-4 md:gap-6">
+          {/* Left Neon Line */}
+          <div className="h-[2px] flex-1 bg-gradient-to-l from-[#E50914] to-transparent shadow-[0_0_15px_rgba(229,9,20,0.8)]"></div>
+
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight text-center shrink-0">
+            Never Get Spoiled Again.
+          </h2>
+
+          {/* Right Neon Line */}
+          <div className="h-[2px] flex-1 bg-gradient-to-r from-[#E50914] to-transparent shadow-[0_0_15px_rgba(229,9,20,0.8)]"></div>
+        </div>
+      </motion.div>
+
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-8 items-center">
-        
+
         {/* Left: WhatsApp Mockup */}
         <div className="flex justify-center lg:justify-center relative">
           {/* Subtle glow behind the phone */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[600px] bg-[#E50914]/20 blur-[100px] rounded-full pointer-events-none"></div>
-          
-          <motion.div 
+
+          <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
@@ -73,7 +93,7 @@ export default function Features() {
             <div className="flex-1 p-4 flex flex-col gap-3 relative overflow-hidden">
               {/* Chat Background Pattern */}
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'url("https://static.whatsapp.net/rsrc.php/v3/yl/r/r_Q01z1o0.png")', backgroundSize: 'cover' }}></div>
-              
+
               {/* Date Badge */}
               <div className="flex justify-center mb-2">
                 <span className="bg-[#182229] text-gray-400 text-[11px] px-3 py-1 rounded-lg shadow-sm">Today</span>
@@ -83,19 +103,19 @@ export default function Features() {
               <Message time="10:00 AM" delay={0.5}>
                 Hey! 👋 Welcome to Ani-Claw.
               </Message>
-              
+
               <Message time="10:00 AM" delay={1.5}>
                 What anime are you currently watching?
               </Message>
-              
+
               <Message isUser time="10:02 AM" delay={3.0}>
                 Solo Leveling
               </Message>
-              
+
               <Message time="10:02 AM" delay={4.5}>
                 Awesome! I'll ping you as soon as Episode 8 drops. ⚔️
               </Message>
-              
+
               <Message time="10:30 AM" delay={6.5}>
                 <div className="flex flex-col gap-2">
                   <div className="font-bold text-[#E50914] flex items-center gap-1">
@@ -136,14 +156,14 @@ export default function Features() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
+            className="mb-8 md:mb-12"
           >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 tracking-tight">Never get spoiled again.</h2>
-            <p className="text-gray-400 text-lg md:text-xl leading-relaxed">We track release schedules across all major platforms so you can watch the moment it drops. Straight to your inbox.</p>
+            <p className="text-gray-300 text-xl md:text-2xl leading-relaxed">We track release schedules across all major platforms so you can watch the moment it drops. Straight to your inbox.</p>
           </motion.div>
 
           <div className="flex flex-col gap-8 mt-2">
             {features.map((feat, idx) => (
-              <motion.div 
+              <motion.div
                 key={idx}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}

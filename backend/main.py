@@ -1,16 +1,13 @@
 import os
 import requests
+import asyncio
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Form, Response, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from supabase import create_client
 from datetime import datetime
 import uvicorn
-import asyncio
-from fastapi.responses import StreamingResponse
-
-active_verifications = {}
-
 
 load_dotenv()
 
@@ -21,6 +18,8 @@ VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN")
 PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_ID")
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
+active_verifications = {}
+
 origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 app.add_middleware(
     CORSMiddleware,
@@ -30,11 +29,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 def format_timestamp(ts):
     if not ts or ts == 2147483647:
         return None
     dt = datetime.fromtimestamp(ts)
     return dt.strftime("%B %d at %I:%M %p")
+
 
 def get_anilist_info(name: str):
     query = '''query ($s: String) { 
@@ -56,6 +57,7 @@ def get_anilist_info(name: str):
         print(f"AniList Search Error: {e}")
         return []
 
+
 def get_user_by_phone(phone: str):
     try:
         res = supabase.table("users").select("id").eq("whatsapp_number", phone).execute()
@@ -65,6 +67,7 @@ def get_user_by_phone(phone: str):
     except Exception as e:
         print(f"User Lookup Error: {e}")
         return None
+
 
 def send_whatsapp_reply(to, text):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
@@ -77,6 +80,7 @@ def send_whatsapp_reply(to, text):
     }
     requests.post(url, json=payload, headers=headers)
 
+
 def trigger_welcome_message(to_phone, user_name):
     msg = (
         f"🎉 *Account Linked successfully!*\n\n"
@@ -85,6 +89,7 @@ def trigger_welcome_message(to_phone, user_name):
         f"Happy watching!"
     )
     send_whatsapp_reply(to_phone, msg)
+
 
 def fetch_single_anime(anilist_id: int):
     query = '''query ($id: Int) { Media(id: $id, type: ANIME) { 
@@ -97,6 +102,7 @@ def fetch_single_anime(anilist_id: int):
     except Exception as e:
         print(f"Fetch Error: {e}")
         return None
+
 
 def process_anime_tracking(anilist_id: int, user_id: str):
     if not user_id:
@@ -154,8 +160,6 @@ def process_anime_tracking(anilist_id: int, user_id: str):
     return {"success": True, "title": title, "current_ep": current_ep, "next_airing_at": airing_timestamp}
 
 
-
-
 @app.get("/api/verify/stream/{session_code}")
 async def stream_verification(request: Request, session_code: str):
     queue = asyncio.Queue()
@@ -176,9 +180,9 @@ async def stream_verification(request: Request, session_code: str):
     return StreamingResponse(event_publisher(), media_type="text/event-stream")
 
 
-
 @app.get("/webhook")
-async def verify_webhook(mode: str = Query(None, alias="hub.mode"), token: str = Query(None, alias="hub.verify_token"), challenge: str = Query(None, alias="hub.challenge")):
+async def verify_webhook(mode: str = Query(None, alias="hub.mode"), token: str = Query(None, alias="hub.verify_token"),
+                         challenge: str = Query(None, alias="hub.challenge")):
     if mode == "subscribe" and token == VERIFY_TOKEN:
         return Response(content=challenge, status_code=200)
     return Response(content="Verification failed", status_code=403)
@@ -307,6 +311,7 @@ def send_interactive_list(to, results):
     }
     requests.post(url, json=payload, headers=headers)
 
+
 def send_interactive_image_card(to, anime):
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"}
@@ -351,10 +356,12 @@ def send_interactive_image_card(to, anime):
     }
     requests.post(url, json=payload, headers=headers)
 
+
 @app.post("/api/track/web")
 async def track_from_web(request: Request):
     data = await request.json()
     return process_anime_tracking(data['anilist_id'], data['user_id'])
+
 
 @app.post("/api/user/welcome")
 async def welcome_new_user(request: Request):
@@ -365,6 +372,7 @@ async def welcome_new_user(request: Request):
         trigger_welcome_message(phone, name)
         return {"success": True}
     return {"success": False, "message": "Phone number required"}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
