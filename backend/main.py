@@ -22,15 +22,16 @@ supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
 active_verifications = {}
 
-origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+# Fetch the frontend URL from your .env file, or default to localhost for testing
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[FRONTEND_URL, "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 def format_timestamp(ts):
     if not ts or ts == 2147483647:

@@ -387,7 +387,7 @@ export default function Dashboard() {
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return;
 
-          const response = await fetch('http://localhost:8000/api/user/delete', {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: user.id })
@@ -503,7 +503,7 @@ export default function Dashboard() {
     setAddingAnimeId(anime.id);
 
     try {
-      const response = await fetch('http://localhost:8000/api/track/web', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/track/web`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

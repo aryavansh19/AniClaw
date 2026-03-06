@@ -69,7 +69,7 @@ export default function Auth({ defaultIsLogin = true }: { defaultIsLogin?: boole
       setError(error.message);
       setLoading(false);
     } else {
-      await fetch('http://localhost:8000/api/user/welcome', {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/user/welcome`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: whatsappNumber, name: fullName })
@@ -91,7 +91,7 @@ export default function Auth({ defaultIsLogin = true }: { defaultIsLogin?: boole
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     setSessionCode(code);
 
-    const eventSource = new EventSource(`http://localhost:8000/api/verify/stream/${code}`);
+    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL}/api/verify/stream/${code}`);
 
     eventSource.onmessage = (event) => {
       if (event.data === "SUCCESS") {
