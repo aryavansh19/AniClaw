@@ -19,7 +19,7 @@ export default function Contact() {
             transition={{ duration: 0.6 }}
             className="p-10 md:p-16 lg:p-24 lg:border-r border-white/5 flex flex-col justify-center"
           >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 tracking-tight uppercase">Stay connected.</h2>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 tracking-tight uppercase drop-shadow-[0_0_15px_rgba(229,9,20,0.4)]">Stay connected.</h2>
             <p className="text-gray-400 text-lg md:text-xl mb-12 leading-relaxed max-w-lg">
               Missing an anime? Found a bug? Drop us a line. We read every message and ship updates fast.
             </p>

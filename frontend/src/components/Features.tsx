@@ -174,7 +174,7 @@ export default function Features() {
                   {feat.icon}
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold mb-2 text-gray-100">{feat.title}</h3>
+                  <h3 className="text-2xl font-bold mb-2 text-gray-100 drop-shadow-[0_0_10px_rgba(229,9,20,0.3)]">{feat.title}</h3>
                   <p className="text-gray-400 leading-relaxed text-lg">{feat.desc}</p>
                 </div>
               </motion.div>

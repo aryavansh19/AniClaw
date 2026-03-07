@@ -20,7 +20,7 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
         >
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-display font-extrabold tracking-tight text-white mb-6 leading-[1.1] drop-shadow-xl">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-display font-extrabold tracking-tight text-white mb-6 leading-[1.1]">
             Never miss an <span className="text-[#E50914] italic pr-2">episode.</span>
           </h1>
         </motion.div>
@@ -40,9 +40,9 @@ export default function Hero() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, ease: 'easeOut', delay: 0.4 }}
         >
-          <Link to="/signup" className="group relative inline-flex items-center justify-center gap-3 px-10 py-5 bg-[#E50914] hover:bg-[#b80710] text-white rounded-full font-bold text-xl transition-all duration-300 hover:scale-105 shadow-[0_0_30px_rgba(229,9,20,0.4)]">
-            <MessageCircle className="w-6 h-6" />
-            <span>Get WhatsApp Reminders</span>
+          <Link to="/signup" className="group relative inline-flex items-center justify-center gap-2 sm:gap-3 px-6 py-4 md:px-10 md:py-5 bg-[#E50914] hover:bg-[#b80710] text-white rounded-full font-bold text-lg md:text-xl transition-all duration-300 hover:scale-105 shadow-[0_0_30px_rgba(229,9,20,0.4)]">
+            <MessageCircle className="w-5 h-5 md:w-6 md:h-6" />
+            <span className="whitespace-nowrap">Get WhatsApp Reminders</span>
           </Link>
         </motion.div>
 
@@ -50,20 +50,20 @@ export default function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.8 }}
-          className="mt-8 flex items-center gap-4 text-sm text-gray-500 font-medium"
+          className="mt-8 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-500 font-medium"
         >
           <div className="flex -space-x-2">
             {[1, 2, 3, 4].map((i) => (
               <img
                 key={i}
-                className="w-8 h-8 rounded-full border-2 border-black object-cover"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-black object-cover"
                 src={`https://picsum.photos/seed/user${i}/100/100`}
                 alt="User avatar"
                 referrerPolicy="no-referrer"
               />
             ))}
           </div>
-          <p>Join 10,000+ weebs already subscribed</p>
+          <p className="text-center sm:text-left">Join 10,000+ weebs already subscribed</p>
         </motion.div>
       </div>
     </section>
