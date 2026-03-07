@@ -14,7 +14,7 @@ export default function Hero() {
       <div className="absolute inset-0 z-20 bg-gradient-to-r from-black/80 via-black/30 to-black/80" />
 
       {/* Content */}
-      <div className="relative z-30 flex flex-col items-center text-center px-6 max-w-5xl mx-auto">
+      <div className="relative z-30 flex flex-col items-center text-center px-6 max-w-5xl mx-auto pb-24 md:pb-0">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
